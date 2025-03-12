@@ -2,9 +2,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import geopandas as gpd
+import locale
+import pydeck as pdk
 
 from joblib import load
 from notebooks.src.config import DADOS_GEO_MEDIAN, DADOS_LIMPOS, MODELO_FINAL
+
+locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
 
 #Carregamento de dados
 @st.cache_data
@@ -31,54 +35,78 @@ st.title('Previsão preços de Imóveis')
 
 counties = list(gdf_geo['name'].sort_values())
 
-selecionar_condado = st.selectbox('Condados', counties)
+coluna1, coluna2 = st.columns(2)
 
-longitude = gdf_geo.query('name == @selecionar_condado')['longitude'].values
-latitude = gdf_geo.query('name == @selecionar_condado')['latitude'].values
+with coluna1:
 
-housing_median_age = st.number_input('Idade do Imóvel', value= 10, min_value=df['housing_median_age'].min(), max_value = df['housing_median_age'].max() )
+    selecionar_condado = st.selectbox('Condados', counties)
+    
+    longitude = gdf_geo.query('name == @selecionar_condado')['longitude'].values
+    latitude = gdf_geo.query('name == @selecionar_condado')['latitude'].values
+    
+    
+    housing_median_age = st.number_input('Idade do Imóvel', value= 10, min_value=df['housing_median_age'].min(), max_value = df['housing_median_age'].max() )
+    
+    total_rooms = gdf_geo.query('name == @selecionar_condado')['total_rooms'].values
+    total_bedrooms = gdf_geo.query('name == @selecionar_condado')['total_bedrooms'].values
+    population = gdf_geo.query('name == @selecionar_condado')['population'].values
+    households = gdf_geo.query('name == @selecionar_condado')['households'].values
+    
+    median_income = st.slider('Renda média (milhares de US$)', 5.0, 100.0, 45.0, 5.0)
+    
+    ocean_proximity = gdf_geo.query('name == @selecionar_condado')['ocean_proximity'].values
+    
+    bins_income = [0, 1.5, 3, 4.5, 6, np.inf]
+    median_income_cat = np.digitize(median_income/10, bins_income)
+    
+    rooms_per_households = gdf_geo.query('name == @selecionar_condado')['rooms_per_households'].values
+    bedrooms_per_room = gdf_geo.query('name == @selecionar_condado')['bedrooms_per_room'].values
+    population_per_househoulds = gdf_geo.query('name == @selecionar_condado')['population_per_househoulds'].values
+    
+    #Recebendo os dados do modelo
+    entrada_modelo = {
+        'longitude': longitude,
+        'latitude': latitude,
+        'housing_median_age': housing_median_age,
+        'total_rooms': total_rooms,
+        'total_bedrooms': total_bedrooms,
+        'population': population,
+        'households': households,
+        'median_income': median_income / 10,
+        'ocean_proximity': ocean_proximity,
+        'median_income_cat': median_income_cat,
+        'rooms_per_households': rooms_per_households,
+        'bedrooms_per_room': bedrooms_per_room,
+        'population_per_househoulds': population_per_househoulds,
+    }
+    
+    #Retorno do modelo e botão
+    df_entrada_modelo = pd.DataFrame(entrada_modelo, index=[0])
+    
+    botao_previsao = st.button('Prever preço')
+    
+    if botao_previsao:
+        preco = modelo.predict(df_entrada_modelo)
+        preco = preco[0][0]
+        preco_formatado = locale.format_string('%.2f', preco, grouping=True)
+        st.write(f'Preço previsto: U$ {preco_formatado}')
 
-total_rooms = gdf_geo.query('name == @selecionar_condado')['total_rooms'].values
-total_bedrooms = gdf_geo.query('name == @selecionar_condado')['total_bedrooms'].values
-population = gdf_geo.query('name == @selecionar_condado')['population'].values
-households = gdf_geo.query('name == @selecionar_condado')['households'].values
 
-median_income = st.slider('Renda média (milhares de US$)', 5.0, 100.0, 45.0, 5.0)
+with coluna2:
+    view_state = pdk.ViewState(
+        latitude=float(latitude[0]),
+        longitude=float(longitude[0]),
+        zoom= 5,
+        min_zoom = 5,
+        max_zoom = 15
+    )
 
-ocean_proximity = gdf_geo.query('name == @selecionar_condado')['ocean_proximity'].values
+    mapa = pdk.Deck(
+        initial_view_state = view_state,
+        map_style = 'light'
+    )
 
-bins_income = [0, 1.5, 3, 4.5, 6, np.inf]
-median_income_cat = np.digitize(median_income/10, bins_income)
-
-rooms_per_households = gdf_geo.query('name == @selecionar_condado')['rooms_per_households'].values
-bedrooms_per_room = gdf_geo.query('name == @selecionar_condado')['bedrooms_per_room'].values
-population_per_househoulds = gdf_geo.query('name == @selecionar_condado')['population_per_househoulds'].values
-
-#Recebendo os dados do modelo
-entrada_modelo = {
-    'longitude': longitude,
-    'latitude': latitude,
-    'housing_median_age': housing_median_age,
-    'total_rooms': total_rooms,
-    'total_bedrooms': total_bedrooms,
-    'population': population,
-    'households': households,
-    'median_income': median_income / 10,
-    'ocean_proximity': ocean_proximity,
-    'median_income_cat': median_income_cat,
-    'rooms_per_households': rooms_per_households,
-    'bedrooms_per_room': bedrooms_per_room,
-    'population_per_househoulds': population_per_househoulds,
-}
-
-#Retorno do modelo e botão
-df_entrada_modelo = pd.DataFrame(entrada_modelo, index=[0])
-
-botao_previsao = st.button('Prever preço')
-
-if botao_previsao:
-    preco = modelo.predict(df_entrada_modelo)
-    st.write(f'Preço previsto: U$ {preco[0][0]:.2f}')
+    st.pydeck_chart(mapa)
 
 
 
