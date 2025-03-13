@@ -2,14 +2,12 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import geopandas as gpd
-import locale
+from babel.numbers import format_currency
 import pydeck as pdk
 import shapely
 
 from joblib import load
 from notebooks.src.config import DADOS_GEO_MEDIAN, DADOS_LIMPOS, MODELO_FINAL
-
-locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
 
 #Carregamento de dados
 @st.cache_data
@@ -124,8 +122,9 @@ with coluna1:
         if botao_previsao:
             preco = modelo.predict(df_entrada_modelo)
             preco = preco[0][0]
-            preco_formatado = locale.format_string('%.2f', preco, grouping=True)
-            st.metric(label= 'Preço previsto US$', value= f'{preco_formatado}')
+            preco_formatado = format_currency(preco, 'BRL', locale='pt_BR', currency_digits=False)
+            formatted_without_symbol = preco_formatado.replace("R$", "").strip()
+            st.metric(label= 'Preço previsto US$', value= f'{formatted_without_symbol}')
 
 
 
