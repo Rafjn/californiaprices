@@ -273,5 +273,6 @@ dependencies:
       - tenacity==8.5.0
       - toml==0.10.2
       - watchdog==4.0.2
-      - geopandas
+      - gdal>=3.0
+
 prefix: C:\Users\chico\anaconda3\envs\machine_learning
