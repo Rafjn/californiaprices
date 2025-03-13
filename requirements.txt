@@ -516,4 +516,3 @@ dependencies:
       - shapely==2.0.7
       - tabula-py==2.9.3
       - xlrd==2.0.1
-prefix: C:\Users\rafae\anaconda3
